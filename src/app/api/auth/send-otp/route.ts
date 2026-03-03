@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { generateOtp, storeOtp } from "@/lib/otp-store";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_EMAIL = process.env.OTP_FROM_EMAIL ?? "onboarding@resend.dev";
 
 export async function POST(req: Request) {
@@ -16,6 +14,7 @@ export async function POST(req: Request) {
     );
   }
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const code = generateOtp();
   storeOtp(email, code);
 
