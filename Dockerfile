@@ -61,5 +61,8 @@ ENV PORT 3000
 # set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
+# Set HOME to a writable directory for the worker/npm
+ENV HOME=/tmp
+
 # Default command is for the SaaS app
 CMD ["node", "server.js"]
