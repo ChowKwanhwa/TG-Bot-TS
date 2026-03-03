@@ -6,6 +6,9 @@ import { prisma } from "../prisma";
 interface ProfileModifyConfig {
   firstName?: string;
   lastName?: string;
+  username?: string;
+  avatarUrl?: string;
+  avatarBase64?: string;
 }
 
 export async function handleProfileModify(
@@ -41,17 +44,62 @@ export async function handleProfileModify(
   await client.connect();
 
   try {
+    let avatarUpdated = false;
     // Get current profile
     const me = await client.getMe() as Api.User;
     const oldName = `${me.firstName ?? ""} ${me.lastName ?? ""}`.trim();
+    const oldUsername = me.username;
 
-    // Update profile
-    await client.invoke(
-      new Api.account.UpdateProfile({
-        firstName: config.firstName ?? me.firstName ?? "",
-        lastName: config.lastName ?? "",
-      })
-    );
+    // 1. Update Profile (Names)
+    if (config.firstName !== undefined || config.lastName !== undefined) {
+      await client.invoke(
+        new Api.account.UpdateProfile({
+          firstName: config.firstName ?? me.firstName ?? "",
+          lastName: config.lastName ?? me.lastName ?? "",
+        })
+      );
+    }
+
+    // 2. Update Username
+    if (config.username !== undefined && config.username !== oldUsername) {
+      await client.invoke(
+        new Api.account.UpdateUsername({
+          username: config.username,
+        })
+      );
+    }
+
+    // 3. Update Avatar (Profile Photo)
+    if (config.avatarBase64) {
+      try {
+        const base64Data = config.avatarBase64.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+        const uploadedFile = await client.uploadFile({
+          file: buffer as any,
+          workers: 1,
+        });
+        await client.invoke(new Api.photos.UploadProfilePhoto({ file: uploadedFile }));
+        avatarUpdated = true;
+      } catch (err) {
+        console.error("Failed to upload local avatar:", err);
+      }
+    } else if (config.avatarUrl) {
+      try {
+        const fetchRes = await fetch(config.avatarUrl);
+        if (fetchRes.ok) {
+          const arrayBuffer = await fetchRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const uploadedFile = await client.uploadFile({
+            file: buffer as any,
+            workers: 1,
+          });
+          await client.invoke(new Api.photos.UploadProfilePhoto({ file: uploadedFile }));
+          avatarUpdated = true;
+        }
+      } catch (err) {
+        console.error("Failed to fetch/upload avatar from URL:", err);
+      }
+    }
 
     // Fetch updated profile
     const updated = await client.getMe() as Api.User;
@@ -73,7 +121,13 @@ export async function handleProfileModify(
       data: {
         status: "COMPLETED",
         completedAt: new Date(),
-        result: { oldName, newName } as unknown as Record<string, string>,
+        result: {
+          oldName,
+          newName,
+          oldUsername: oldUsername ?? "none",
+          newUsername: updated.username ?? "none",
+          avatarUpdated
+        } as unknown as Record<string, string | boolean>,
       },
     });
   } finally {

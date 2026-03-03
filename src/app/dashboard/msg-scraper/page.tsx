@@ -11,8 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MessageSquareText, Loader2, RefreshCw } from "lucide-react";
+import { MessageSquareText, Loader2, RefreshCw, Download } from "lucide-react";
 import { toast } from "sonner";
+import JSZip from "jszip";
 
 interface TgSessionOption {
   id: string;
@@ -48,6 +49,7 @@ export default function MsgScraperPage() {
   const [sessions, setSessions] = useState<TgSessionOption[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingZip, setDownloadingZip] = useState<string | null>(null);
 
   const [sessionId, setSessionId] = useState("");
   const [link, setLink] = useState("");
@@ -259,25 +261,130 @@ export default function MsgScraperPage() {
                         </span>
                       </td>
                       <td className="max-w-[200px] truncate py-2 pr-3 text-xs text-zinc-500">
-                        {t.result
+                        {t.status === "RUNNING" && t.result && (t.result as any).progress !== undefined && (
+                          <div className="flex flex-col gap-1 w-32">
+                            <div className="flex justify-between text-[10px] text-zinc-400">
+                              <span>{(t.result as any).fetched ?? 0}/{(t.result as any).total ?? 0}</span>
+                              <span className="text-blue-400 font-medium">{(t.result as any).progress}%</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500 transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+                                style={{ width: `${(t.result as any).progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {t.status === "COMPLETED" && t.result
                           ? `${(t.result as Record<string, unknown>).totalMessages ?? 0} msgs`
-                          : "—"}
+                          : t.status !== "RUNNING" ? "—" : null}
                       </td>
                       <td className="py-2 pr-3 text-xs text-zinc-500">
                         {new Date(t.createdAt).toLocaleString()}
                       </td>
-                      <td className="py-2">
-                        {(t.status === "PENDING" ||
-                          t.status === "RUNNING") && (
+                      <td className="py-2 gap-2 flex flex-wrap">
+                        {t.status === "COMPLETED" && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => cancelTask(t.id)}
-                            className="border-red-500/20 bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-200"
+                            onClick={() => {
+                              const res = t.result as any;
+                              if (!res || !res.messages) {
+                                toast.error("No data found to export.");
+                                return;
+                              }
+                              const headers = ["ID", "Text", "Media Type", "Media URL", "Date"];
+                              const rows = res.messages.map((m: any) => [
+                                m.msgId,
+                                `"${(m.text || "").replace(/"/g, '""')}"`,
+                                m.mediaType || "",
+                                m.mediaUrl || "",
+                                m.date
+                              ]);
+                              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                              const link = document.createElement("a");
+                              const url = URL.createObjectURL(blob);
+                              link.setAttribute("href", url);
+                              link.setAttribute("download", `scrape_${t.id}.csv`);
+                              link.style.visibility = 'hidden';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="border-blue-500/20 bg-blue-500/10 text-xs text-blue-300 hover:bg-blue-500/20 hover:text-blue-200"
                           >
-                            Cancel
+                            Export CSV
                           </Button>
                         )}
+                        {t.status === "COMPLETED" && t.result && (t.result as any).messages && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={downloadingZip === t.id}
+                            onClick={async () => {
+                              const res = t.result as any;
+                              const mediaMessages = res.messages.filter((m: any) => m.mediaUrl);
+                              if (mediaMessages.length === 0) {
+                                toast.error("No media files found in this scrape.");
+                                return;
+                              }
+
+                              setDownloadingZip(t.id);
+                              try {
+                                const zip = new JSZip();
+                                toast.info(`Starting download of ${mediaMessages.length} files...`);
+
+                                for (let i = 0; i < mediaMessages.length; i++) {
+                                  const m = mediaMessages[i];
+                                  const response = await fetch(m.mediaUrl);
+                                  if (!response.ok) continue;
+                                  const blob = await response.blob();
+
+                                  // Determine filename
+                                  let filename = `${m.msgId}`;
+                                  if (m.mediaType === "photo") filename += ".jpg";
+                                  else if (m.mediaType === "document") filename += ".bin";
+
+                                  zip.file(filename, blob);
+                                }
+
+                                const content = await zip.generateAsync({ type: "blob" });
+                                const link = document.createElement("a");
+                                link.href = URL.createObjectURL(content);
+                                link.download = `media_${t.id}.zip`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                toast.success("Media ZIP downloaded!");
+                              } catch (err) {
+                                console.error("Zip error:", err);
+                                toast.error("Failed to generate ZIP.");
+                              } finally {
+                                setDownloadingZip(null);
+                              }
+                            }}
+                            className="border-fuchsia-500/20 bg-fuchsia-500/10 text-xs text-fuchsia-300 hover:bg-fuchsia-500/20 hover:text-fuchsia-200"
+                          >
+                            {downloadingZip === t.id ? (
+                              <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                            ) : (
+                              <Download className="mr-1.5 h-3 w-3" />
+                            )}
+                            Download media folder (Zip)
+                          </Button>
+                        )}
+                        {(t.status === "PENDING" ||
+                          t.status === "RUNNING") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => cancelTask(t.id)}
+                              className="border-red-500/20 bg-red-500/10 text-xs text-red-300 hover:bg-red-500/20 hover:text-red-200"
+                            >
+                              Cancel
+                            </Button>
+                          )}
                       </td>
                     </tr>
                   ))}

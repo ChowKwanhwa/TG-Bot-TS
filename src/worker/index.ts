@@ -28,7 +28,12 @@ async function processJob(job: Job<TaskJobData>) {
         await handleProfileModify(
           taskId,
           tgSessionId,
-          config as { firstName?: string; lastName?: string }
+          config as {
+            firstName?: string;
+            lastName?: string;
+            username?: string;
+            avatarUrl?: string;
+          }
         );
         break;
       case "MESSAGE_SCRAPE":

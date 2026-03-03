@@ -40,6 +40,9 @@ export default function ProfileModifierPage() {
   const [editSession, setEditSession] = useState<TgSession | null>(null);
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const [editAvatarUrl, setEditAvatarUrl] = useState("");
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchSessions = useCallback(async () => {
@@ -60,18 +63,37 @@ export default function ProfileModifierPage() {
     setEditSession(session);
     setEditFirstName(session.tgFirstName ?? "");
     setEditLastName(session.tgLastName ?? "");
+    setEditUsername(session.tgUsername ?? "");
+    setEditAvatarUrl("");
+    setEditAvatarFile(null);
   }
 
   async function handleEditSubmit() {
     if (!editSession) return;
     setSubmitting(true);
+
+    let avatarBase64 = undefined;
+    if (editAvatarFile) {
+      avatarBase64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(editAvatarFile);
+      });
+    }
+
     const res = await fetch("/api/tasks/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tgSessionId: editSession.id,
         type: "PROFILE_MODIFY",
-        config: { firstName: editFirstName, lastName: editLastName },
+        config: {
+          firstName: editFirstName,
+          lastName: editLastName,
+          username: editUsername,
+          avatarUrl: editAvatarUrl || undefined,
+          avatarBase64
+        },
       }),
     });
     const data = await res.json();
@@ -287,6 +309,61 @@ export default function ProfileModifierPage() {
                 onChange={(e) => setEditLastName(e.target.value)}
                 placeholder="New last name"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-username">Username</Label>
+              <Input
+                id="edit-username"
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                placeholder="New username (without @)"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Avatar Photo</Label>
+              <div className="grid gap-2">
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setEditAvatarFile(file);
+                        setEditAvatarUrl(""); // Clear URL if file selected
+                      }
+                    }}
+                    className="flex-1 cursor-pointer border-white/10 bg-white/5 text-xs text-zinc-400 file:mr-2 file:border-0 file:bg-violet-600 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white"
+                  />
+                  {editAvatarFile && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditAvatarFile(null)}
+                      className="h-8 px-2 text-zinc-500 hover:text-white"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-white/5" />
+                  <span className="text-[10px] text-zinc-600 uppercase">OR URL</span>
+                  <div className="h-px flex-1 bg-white/5" />
+                </div>
+                <Input
+                  id="edit-avatar"
+                  value={editAvatarUrl}
+                  onChange={(e) => {
+                    setEditAvatarUrl(e.target.value);
+                    if (e.target.value) setEditAvatarFile(null); // Clear file if URL entered
+                  }}
+                  placeholder="Image URL (direct link to .jpg/.png)"
+                />
+              </div>
+              <p className="text-[10px] text-zinc-500">
+                Leave both empty to keep current avatar.
+              </p>
             </div>
           </div>
           <DialogFooter>

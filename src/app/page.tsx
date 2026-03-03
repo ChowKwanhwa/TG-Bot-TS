@@ -171,15 +171,26 @@ function LandingContent() {
             RepeatBot
           </span>
         </div>
-        <button
-          onClick={() => {
-            const el = document.getElementById("cta");
-            el?.scrollIntoView({ behavior: "smooth" });
-          }}
-          className="text-sm text-zinc-400 transition-colors duration-200 hover:text-white"
-        >
-          Sign In
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              const el = document.getElementById("cta");
+              el?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="text-sm font-medium text-zinc-400 transition-colors duration-200 hover:text-white"
+          >
+            Log In
+          </button>
+          <Button
+            onClick={() => {
+              const el = document.getElementById("cta");
+              el?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="hidden h-9 bg-white/10 text-xs font-semibold text-white backdrop-blur-md transition-all hover:bg-white/20 sm:flex"
+          >
+            Sign Up
+          </Button>
+        </div>
       </nav>
 
       {/* ── Hero Section ─────────────────────────────── */}
@@ -209,8 +220,34 @@ function LandingContent() {
             <span className="text-zinc-300">No coding required.</span>
           </p>
 
+          {/* ── Main Buttons ────────────────────────────── */}
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button
+              onClick={() => {
+                const el = document.getElementById("cta");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+              size="lg"
+              className="h-14 w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-8 text-base font-bold text-white shadow-xl shadow-violet-600/25 transition-all duration-300 hover:scale-[1.03] hover:shadow-violet-600/40 sm:w-auto"
+            >
+              Sign Up Now
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const el = document.getElementById("cta");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+              size="lg"
+              className="h-14 w-full border-white/10 bg-white/5 px-8 text-base font-bold text-white backdrop-blur-md transition-all duration-300 hover:bg-white/10 sm:w-auto"
+            >
+              Log In to Dashboard
+            </Button>
+          </div>
+
           {/* ── CTA Section ────────────────────────────── */}
-          <div id="cta" className="mx-auto mt-12 max-w-md">
+          <div id="cta" className="mx-auto mt-16 max-w-md">
             {error && errorMessages[error] && (
               <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
                 {errorMessages[error]}
@@ -218,13 +255,13 @@ function LandingContent() {
             )}
 
             {step === "email" || step === "sending" ? (
-              <form onSubmit={handleSendCode}>
+              <form onSubmit={handleSendCode} className="space-y-4">
                 <div className="group relative">
                   <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-violet-600/50 to-fuchsia-600/50 opacity-0 blur-sm transition-all duration-500 group-focus-within:opacity-100" />
                   <div className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-zinc-900/80 p-2 backdrop-blur-md">
                     <Input
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="Enter your email to start"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -242,7 +279,7 @@ function LandingContent() {
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">
-                          Get Free Trial
+                          Continue
                           <ArrowRight className="h-4 w-4" />
                         </span>
                       )}

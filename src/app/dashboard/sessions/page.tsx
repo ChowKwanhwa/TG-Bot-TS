@@ -11,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { toast } from "sonner";
+import { Loader2, RefreshCcw } from "lucide-react";
 
 interface TgSessionRow {
   id: string;
@@ -43,6 +45,7 @@ export default function SessionsPage() {
   const [importPhone, setImportPhone] = useState("");
   const [importSession, setImportSession] = useState("");
   const [importing, setImporting] = useState(false);
+  const [testingId, setTestingId] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -156,6 +159,33 @@ export default function SessionsPage() {
     setImportSession("");
     setShowImport(false);
     fetchSessions();
+  }
+
+  async function handleTest(sessionId: string) {
+    setTestingId(sessionId);
+    try {
+      const res = await fetch("/api/sessions/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.error ?? "Test failed");
+      } else {
+        if (data.isAlive) {
+          toast.success("Session is alive!");
+        } else {
+          toast.error("Session is dead (unauthorized or revoked)");
+        }
+        fetchSessions();
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? "Connection error");
+    } finally {
+      setTestingId(null);
+    }
   }
 
   const deadCount = sessions.filter((s) => !s.isAlive).length;
@@ -380,15 +410,30 @@ export default function SessionsPage() {
                         {s.tgUsername ? `@${s.tgUsername}` : "—"}
                       </td>
                       <td className="py-3 pr-4">
-                        <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                            s.isAlive
-                              ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                              : "border border-zinc-500/20 bg-zinc-500/10 text-zinc-400"
-                          }`}
-                        >
-                          {s.isAlive ? "Alive" : "Dead"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`rounded-md px-2 py-0.5 text-xs font-medium ${s.isAlive
+                                ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                                : "border border-zinc-500/20 bg-zinc-500/10 text-zinc-400"
+                              }`}
+                          >
+                            {s.isAlive ? "Alive" : "Dead"}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-zinc-500 hover:text-white"
+                            disabled={testingId === s.id}
+                            onClick={() => handleTest(s.id)}
+                            title="Test connection"
+                          >
+                            {testingId === s.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCcw className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
                       </td>
                       <td className="py-3 pr-4 text-xs text-zinc-500">
                         {new Date(s.createdAt).toLocaleDateString()}
