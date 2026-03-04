@@ -1,5 +1,6 @@
 import { TelegramClient, Api } from "telegram";
 import { StringSession } from "telegram/sessions";
+import { CustomFile } from "telegram/client/uploads";
 import { decryptSession } from "../../lib/crypto";
 import { prisma } from "../prisma";
 
@@ -74,8 +75,9 @@ export async function handleProfileModify(
       try {
         const base64Data = config.avatarBase64.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, "base64");
+        const customFile = new CustomFile("avatar.jpg", buffer.length, "", buffer);
         const uploadedFile = await client.uploadFile({
-          file: buffer as any,
+          file: customFile,
           workers: 1,
         });
         await client.invoke(new Api.photos.UploadProfilePhoto({ file: uploadedFile }));
@@ -89,8 +91,9 @@ export async function handleProfileModify(
         if (fetchRes.ok) {
           const arrayBuffer = await fetchRes.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
+          const customFile = new CustomFile("avatar.jpg", buffer.length, "", buffer);
           const uploadedFile = await client.uploadFile({
-            file: buffer as any,
+            file: customFile,
             workers: 1,
           });
           await client.invoke(new Api.photos.UploadProfilePhoto({ file: uploadedFile }));

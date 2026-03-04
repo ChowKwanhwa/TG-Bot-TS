@@ -15,3 +15,11 @@
 ## Multi-service Monorepo on Railway
 - **Problem**: Tracking logs and status for multiple services in a single repo can be confusing if they don't deploy at the exact same time or if CLI linking is ambiguous.
 - **Solution**: Use explicit service IDs (`railway logs --service <ID>`) for unambiguous verification.
+
+## Cloudflare R2 SignatureDoesNotMatch with AWS SDK v3
+- **Problem**: Encountering `SignatureDoesNotMatch` when uploading to Cloudflare R2 using `@aws-sdk/lib-storage` `Upload` instances.
+- **Solution**: AWS SDK v3 automatically populates checksum headers for multipart/streamed uploads which R2 may calculate differently or reject. Disable this enforcement by setting `requestChecksumCalculation: "WHEN_REQUIRED"` and `responseChecksumValidation: "WHEN_REQUIRED"` in the `S3Client` instantiation to resolve the issue.
+
+## GramJS Uploading Buffer to Telegram
+- **Problem**: Calling `client.uploadFile` and passing a Node.js `Buffer` natively throws a `Could not create buffer from file` error because GramJS validates inputs rigorously online/in browser-like contexts.
+- **Solution**: Import `CustomFile` from `telegram/client/uploads` and wrap the buffer explicitly using `new CustomFile(filename, size, "", buffer)` to correctly upload via GramJS `uploadFile` method.
