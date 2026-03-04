@@ -18,7 +18,7 @@
 
 ## Cloudflare R2 SignatureDoesNotMatch with AWS SDK v3
 - **Problem**: Encountering `SignatureDoesNotMatch` when uploading to Cloudflare R2 using `@aws-sdk/lib-storage` `Upload` instances.
-- **Solution**: AWS SDK v3 automatically populates checksum headers for multipart/streamed uploads which R2 may calculate differently or reject. Disable this enforcement by setting `requestChecksumCalculation: "WHEN_REQUIRED"` and `responseChecksumValidation: "WHEN_REQUIRED"` in the `S3Client` instantiation to resolve the issue.
+- **Solution**: AWS SDK v3 automatically populates checksum headers (`x-amz-checksum-crc32`) for multipart/streamed uploads initiated by `@aws-sdk/lib-storage` `Upload`. The checksum validation `WHEN_REQUIRED` settings on the `S3Client` are overridden by the `Upload` class, causing Cloudflare R2 to reject the requests due to mismatched signature interpretation. To fix this, use standard `PutObjectCommand` from `@aws-sdk/client-s3` instead of the `Upload` helper for standard object uploads.
 
 ## GramJS Uploading Buffer to Telegram
 - **Problem**: Calling `client.uploadFile` and passing a Node.js `Buffer` natively throws a `Could not create buffer from file` error because GramJS validates inputs rigorously online/in browser-like contexts.
