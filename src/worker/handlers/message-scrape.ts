@@ -4,7 +4,7 @@ import { StringSession } from "telegram/sessions";
 import bigInt from "big-integer";
 import { decryptSession } from "../../lib/crypto";
 import { prisma } from "../prisma";
-import { Upload } from "@aws-sdk/lib-storage";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, getR2PublicUrl } from "../../lib/r2";
 
 interface ScrapeConfig {
@@ -120,17 +120,14 @@ export async function handleMessageScrape(
                 const ext = mediaType === "photo" ? "jpg" : "bin";
                 const key = `scraped/${taskId}/${msg.id}.${ext}`;
 
-                const upload = new Upload({
-                  client: r2Client,
-                  params: {
+                await r2Client.send(
+                  new PutObjectCommand({
                     Bucket: process.env.R2_BUCKET_NAME!,
                     Key: key,
                     Body: buffer,
                     ContentType: mediaType === "photo" ? "image/jpeg" : "application/octet-stream",
-                  },
-                });
-
-                await upload.done();
+                  })
+                );
                 mediaUrl = getR2PublicUrl(key) || key;
               }
             } catch (err) {
